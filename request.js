@@ -1,3 +1,5 @@
+// usage: import {Request} from 'https://cdn.jsdelivr.net/gh/MrNimbus777/something.js@main/request.js';
+//
 export function setLimitedInterval(callback = () => {}, delay = 1000, times = 1){
     const interval = setInterval(() => {
         if(times-- <= 0) {
