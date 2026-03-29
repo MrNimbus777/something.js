@@ -19,8 +19,21 @@ class RequestBuilder{
         this._isRead = false;
         this._signal = undefined;
         this._retry = undefined;
+        this._query = undefined;
     }
     
+    query(param, val = undefined){
+        if(!this._query) this._query = {};
+        if (typeof param === "object") {
+            for (const [k, v] of Object.entries(param)) {
+                this._query[k] = v;
+            }
+        } else if(typeof param === "string"){
+            this._query[param] = val;
+        }
+        return this;
+    }
+
     header(key, value) {
         this._headers[key] = value;
         return this;
@@ -74,9 +87,12 @@ class RequestBuilder{
 
         let attempt = 0;
 
+        const url = new URL(this._url);
+        url.search = this._query?.toString() || undefined;
+
         while (true) {
             try {
-                const res = await fetch(this._url, {
+                const res = await fetch(url.toString(), {
                     method: this._method,
                     headers: this._headers,
                     body: this._body,
