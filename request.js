@@ -87,7 +87,7 @@ class RequestBuilder{
 
         let attempt = 0;
 
-        const url = new URL(this._url);
+        const url = new URL(this._url, window.location.origin);
         url.search = this._query?.toString() || undefined;
 
         while (true) {
