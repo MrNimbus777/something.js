@@ -23,13 +23,13 @@ class RequestBuilder{
     }
     
     query(param, val = undefined){
-        if(!this._query) this._query = {};
+        if(!this._query) this._query = new URLSearchParams();;
         if (typeof param === "object") {
             for (const [k, v] of Object.entries(param)) {
-                this._query[k] = v;
+                this._query.set(k, v);
             }
         } else if(typeof param === "string"){
-            this._query[param] = val;
+            this._query.set(param, val);
         }
         return this;
     }
