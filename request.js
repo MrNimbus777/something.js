@@ -247,7 +247,7 @@ export const Request = {
     },
     makeWebSocketsAlwaysSecure: false,
     websocket(url = '', absolutePath = false){
-        if(makeWebSocketsAlwaysSecure === true) return this.websocketSecure(url, absolutePath); 
+        if(this.makeWebSocketsAlwaysSecure === true) return this.websocketSecure(url, absolutePath); 
         return new WebSocketBuilder(absolutePath ? new URL(url) : new URL(`ws://${window.location.hostname}/${url}`));
     },
     websocketSecure(url = '', absolutePath = false){
