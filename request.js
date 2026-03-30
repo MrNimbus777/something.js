@@ -10,7 +10,7 @@ export function setLimitedInterval(callback = () => {}, delay = 1000, times = 1)
     }, delay);
     return interval;
 }
-class RequestBuilder{
+class _RequestPipelineEntity_ {
     constructor(method, url, headers){
         this._url = url;
         this._method = method;
@@ -23,7 +23,7 @@ class RequestBuilder{
     }
     
     query(param, val = undefined){
-        if(!this._query) this._query = new URLSearchParams();;
+        if(!this._query) this._query = new URLSearchParams();
         if (typeof param === "object") {
             for (const [k, v] of Object.entries(param)) {
                 this._query.set(k, v);
@@ -34,12 +34,14 @@ class RequestBuilder{
         return this;
     }
 
-    header(key, value) {
-        this._headers[key] = value;
-        return this;
-    }
-    headers(obj) {
-        Object.assign(this._headers, obj);
+    header(param, val = undefined) {
+        if (typeof param === "object") {
+            for (const [k, v] of Object.entries(param)) {
+                this._headers[k] = v;
+            }
+        } else if(typeof param === "string"){
+            this._headers[param] = val;
+        }
         return this;
     }
 
@@ -48,37 +50,37 @@ class RequestBuilder{
     auth(token) {return this.header("Authorization", `Bearer ${token}`);}
 
     body(data) {
-        if (this._method in ['GET', 'HEAD', 'OPTIONS']) {
+        if (['GET', 'HEAD', 'OPTIONS'].includes(this._method)){
             throw new Error(`${this._method} request method cannot have a body`);
         }
         this._body = data;
         return this;
     }
-    jsonBody(obj){
+    bodyJson(obj){
         this.body(JSON.stringify(obj));
         this.contentType("application/json");
         return this;
     }
-    fileBody(file){
+    bodyFile(file){
         this.body(file);
         this.contentType(file.type);
         return this;
     }
-    abortController(controller){
+    withAbort(controller){
         this._signal = controller.signal;
         return this;
     }
     timeout(ms = 5000){
         const controller = new AbortController();
-        this.abortController(controller);
-        setTimeout(controller.abort, ms);
+        this.withAbort(controller);
+        setTimeout(() => controller.abort(), ms);
         return this;
     }
     retry(times = 1, delay = 3000){
         this._retry = {times: times, delay: delay};
         return this;
     }
-    async readRaw() {
+    async send() {
         if(this._isRead) throw new Error("Cannot send a request twice!");
         this._isRead = true;
 
@@ -92,7 +94,7 @@ class RequestBuilder{
 
         while (true) {
             try {
-                const res = await fetch(url.toString(), {
+                const res = await fetch(url, {
                     method: this._method,
                     headers: this._headers,
                     body: this._body,
@@ -117,8 +119,8 @@ class RequestBuilder{
             }
         }
     }
-    async read(callback = undefined) { // callback: (res) => {...};
-        const res = await this.readRaw();
+    async sendAndParse(callback = undefined) { // callback: (res) => {...};
+        const res = await this.send();
         
         if(callback && typeof callback === 'function'){
             return callback(res);
@@ -138,17 +140,17 @@ class RequestBuilder{
         // fallback
         return await res.text();
     }
-    async readBlob(){
-        return await (await this.readRaw()).blob();
+    async sendAndParseBlob(){
+        return await (await this.send()).blob();
     }
-    async readText(){
-        return await (await this.readRaw()).text();
+    async sendAndParseText(){
+        return await (await this.send()).text();
     }
-    async readArrayBuffer(){
-        return await (await this.readRaw()).arrayBuffer();
+    async sendAndParseArrayBuffer(){
+        return await (await this.send()).arrayBuffer();
     }
-    async readJson(){
-        return await (await this.readRaw()).json();
+    async sendAndParseJson(){
+        return await (await this.send()).json();
     }
 };
 
@@ -159,7 +161,7 @@ export const Request = {
     },
 
     request(method, url = '') {
-        return new RequestBuilder(method.toUpperCase(), url, this.defaultHeaders);
+        return new _RequestPipelineEntity_(method.toUpperCase(), url, {...this.defaultHeaders});
     },
 
     get(url = '') {
