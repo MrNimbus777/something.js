@@ -89,12 +89,11 @@ class _RequestPipelineEntity_ {
 
         let attempt = 0;
 
-        const url = new URL(this._url, window.location.origin);
-        url.search = this._query?.toString() || undefined;
+        this._url.search = this._query?.toString() || undefined;
 
         while (true) {
             try {
-                const res = await fetch(url, {
+                const res = await fetch(this._url, {
                     method: this._method,
                     headers: this._headers,
                     body: this._body,
@@ -154,35 +153,104 @@ class _RequestPipelineEntity_ {
     }
 };
 
+export class WebSocketBuilder {
+    constructor(url){
+        this._url = url;
+        this._protocols = undefined;
+
+        this._onOpen = undefined;
+        this._onMessage = (event) => {throw new Error("WebSocket recieved a message that is not processed further: " + event.data);};
+        this._onMessageJson = undefined;
+        this._onError = undefined;
+        this._onClose = undefined;
+    }
+
+    onOpen(callback = () => console.log("Connected!")) {
+        this._onOpen = callback;
+        return this;
+    }
+    onMessage(callback = (event) => {throw new Error("WebSocket recieved a message that is not processed further: " + event.data);}) {
+        this._onMessage = callback;
+        return this;
+    }
+    onMessageJson(callback = (json) => {console.log("WebSocket recieved a json: " + json)}){
+        this._onMessageJson = callback;
+        if(this._onMessageJson && !this._onMessage) return this.onMessage();
+        return this;
+    }
+    onError(callback = (err) => console.error("Error:", err)) {
+        this._onError = callback;
+        return this;
+    }
+    onClose(callback = (event) => console.log("Disconnected:", event.code, event.reason)) {
+        this._onClose = callback;
+        return this;
+    }
+    
+    protocols(list){
+        this._protocols = list;
+        return this;
+    }
+
+    build(){
+        const ws = new WebSocket(this._url, this._protocols);
+        
+        ws.onopen = this._onOpen;
+        ws.onmessage = this._onMessageJson 
+        ? 
+        (event) => {
+            try{
+                const json = JSON.parse(event.data);
+                return this._onMessageJson(json);
+            } catch {
+                return this._onMessage(event);
+            }
+        }
+        : this._onMessage;
+        ws.onerror = this._onError;
+        ws.onclose = this._onClose;
+
+        return ws;
+    }
+};
+
 export const Request = {
     defaultHeaders: {},
     setDefaultHeaders(defaultHeaders) {
         this.defaultHeaders = defaultHeaders;
     },
 
-    request(method, url = '') {
+    request(method, url = new URL('', window.location.origin)) {
         return new _RequestPipelineEntity_(method.toUpperCase(), url, {...this.defaultHeaders});
     },
 
-    get(url = '') {
-        return this.request("GET", url);
+    get(url = '', absolutePath = false) {
+        return this.request("GET", absolutePath ? new URL(url) : new URL(url, window.location.origin));
     },
-    post(url = '') {
-        return this.request("POST", url);
+    post(url = '', absolutePath = false) {
+        return this.request("POST", absolutePath ? new URL(url) : new URL(url, window.location.origin));
     },
-    put(url = '') {
-        return this.request("PUT", url);
+    put(url = '', absolutePath = false) {
+        return this.request("PUT", absolutePath ? new URL(url) : new URL(url, window.location.origin));
     },
-    patch(url = '') {
-        return this.request("PATCH", url);
+    patch(url = '', absolutePath = false) {
+        return this.request("PATCH", absolutePath ? new URL(url) : new URL(url, window.location.origin));
     },
-    delete(url = '') {
-        return this.request("DELETE", url);
+    delete(url = '', absolutePath = false) {
+        return this.request("DELETE", absolutePath ? new URL(url) : new URL(url, window.location.origin));
     },
-    head(url = '') {
-        return this.request("HEAD", url);
+    head(url = '', absolutePath = false) {
+        return this.request("HEAD", absolutePath ? new URL(url) : new URL(url, window.location.origin));
     },
-    options(url = '') {
-        return this.request("OPTIONS", url);
+    options(url = '', absolutePath = false) {
+        return this.request("OPTIONS", absolutePath ? new URL(url) : new URL(url, window.location.origin));
+    },
+    makeWebSocketsAlwaysSecure: false,
+    websocket(url = '', absolutePath = false){
+        if(makeWebSocketsAlwaysSecure === true) return this.websocketSecure(url, absolutePath); 
+        return new WebSocketBuilder(absolutePath ? new URL(url) : new URL(`ws://${window.location.hostname}/${url}`));
+    },
+    websocketSecure(url = '', absolutePath = false){
+        return new WebSocketBuilder(absolutePath ? new URL(url) : new URL(`wss://${window.location.hostname}/${url}`));
     }
 };
